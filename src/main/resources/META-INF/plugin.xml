@@ -1,0 +1,48 @@
+<idea-plugin>
+    <!-- 插件id，不可重复，必须唯一。插件的升级后续也是依赖插件id来进行识别的 -->
+    <id>com.neko233.jetbrains-plugin.git-daily-report</id>
+
+    <name>MyTerminal</name>
+
+    <vendor email="1417015340@qq.com" url="https://www.neko233.com">luohaojun</vendor>
+
+    <!--  插件描述，这里一般是写插件的功能介绍啥的 -->
+    <description><![CDATA[
+      MyTerminal
+      一款快速复用你的 Windows/Linux 命令的工具!
+    ]]>
+    </description>
+
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.modules.java</depends>
+    <depends>com.intellij.modules.xml</depends>
+    <depends>com.intellij.modules.vcs</depends>
+    <depends>com.intellij.modules.xdebugger</depends>
+
+
+    <extensions defaultExtensionNs="com.intellij">
+
+        <toolWindow id="MyTerminal"
+                    anchor="bottom"
+                    factoryClass="com.neko233.ide.gitdailyworker.window.MyTerminalWindow"
+                    secondary="true"
+                    icon="com.neko233.ide.gitdailyworker.icon.MyIcons.MyTerminal"
+        />
+
+
+    </extensions>
+
+
+    <actions>
+        <!--        <action id="com.qiqv.plugin.ShowProjectNameAction"-->
+        <!--                class="com.example.idePlugins.anaction.ShowProjectNameAction"-->
+        <!--                text="showProjectName"-->
+        <!--                description="show project name with popup dialog">-->
+        <!--            &lt;!&ndash; 添加到现有的选项框中 &ndash;&gt;-->
+        <!--            <add-to-group group-id="HelpMenu" anchor="after" relative-to-action="About"/>-->
+        <!--        </action>-->
+
+    </actions>
+</idea-plugin>
