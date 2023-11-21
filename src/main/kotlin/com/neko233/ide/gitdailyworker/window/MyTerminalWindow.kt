@@ -10,10 +10,11 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
 import com.neko233.ide.gitdailyworker.myterminal.MyTerminalConstant
 import com.neko233.ide.gitdailyworker.myterminal.MyTerminalData
-import com.neko233.skilltree.commons.core.file.FileUtils233
 import com.neko233.skilltree.commons.core.utils.CollectionUtils233
+import com.neko233.skilltree.commons.core.utils.KvTemplate233
 import com.neko233.skilltree.commons.core.utils.MapUtils233
 import org.apache.commons.io.FileUtils
+import org.apache.commons.lang3.StringUtils
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.GridLayout
@@ -97,31 +98,7 @@ class MyTerminalWindow : ToolWindowFactory {
         }
 
         val readAgainButton = JButton("Read Config")
-        readAgainButton.addActionListener {
-            val basePath = project.basePath
-            val terminalJsonFile = File(basePath, MyTerminalConstant.defaultFileName)
-            if (!terminalJsonFile.exists()) {
-                return@addActionListener
-            }
-            val content = FileUtils233.readAllContent(terminalJsonFile)
 
-
-            val parseArray: MutableList<MyTerminalData>? =
-                JSON.parseArray(content, MyTerminalData::class.java)
-            if (CollectionUtils233.isEmpty(parseArray)) {
-                return@addActionListener
-            }
-
-            parseArray!!
-            val hashMap = HashMap<String, MutableMap<String, MyTerminalData>>()
-            parseArray.forEach {
-                hashMap.computeIfAbsent(it.os.lowercase()) { _ ->
-                    HashMap()
-                }[it.name] = it
-            }
-
-            osToNameToDataMap = hashMap
-        }
 
         part1Panel.add(configFileLabel)
         part1Panel.add(configFileTextField)
@@ -138,19 +115,19 @@ class MyTerminalWindow : ToolWindowFactory {
         val commandLabel = JLabel("Select Command:")
 
         // 读取配置文件的 cmdName List
-        val key = osLabel.text.lowercase()
-        val data: MutableCollection<MyTerminalData> = osToNameToDataMap.getOrDefault(key, MapUtils233.empty()).values
+        val osName = osLabel.text.lowercase()
+        val data: MutableCollection<MyTerminalData> = osToNameToDataMap.getOrDefault(osName, MapUtils233.empty()).values
         val cmdNameList = ArrayList(data)
             .stream()
             .map { it.name }
             .toList()
-        val selectColumn = createScrollableColumn(cmdNameList)
+        val selectItemScrollPanel = createScrollPaneForSelectItem(cmdNameList)
         // 添加选择监听器
-        val selectJList = (selectColumn.viewport.view as? JList<String>)
+        val selectItemJList = (selectItemScrollPanel.viewport.view as JList<String>)
 
 
         part2Panel.add(commandLabel)
-        part2Panel.add(selectColumn)
+        part2Panel.add(selectItemScrollPanel)
 
         // 第 3 部分
         val part3Panel = JPanel(BorderLayout())
@@ -195,10 +172,10 @@ class MyTerminalWindow : ToolWindowFactory {
 
 
         // 监听
-        selectJList?.selectionModel?.addListSelectionListener {
+        selectItemJList?.selectionModel?.addListSelectionListener {
             if (!it.valueIsAdjusting) {
 
-                val cmdName = selectJList.selectedValue
+                val cmdName = selectItemJList.selectedValue
 
                 val os = osLabel.text.lowercase()
                 val myTerminalData = osToNameToDataMap.getOrDefault(os, MapUtils233.empty())
@@ -212,10 +189,60 @@ class MyTerminalWindow : ToolWindowFactory {
                 this.refreshInputCmdTemplate(cmdTemplateTextArea, inputPanel)
             }
         }
+        generateButton.addActionListener {
+            val kvMap = this.extractKvMapFromChildLabelField(inputPanel)
+
+            val build = KvTemplate233(cmdTemplateTextArea.text)
+                .put(kvMap)
+                .build()
+
+            consoleTextArea.text = build
+        }
+
+        readAgainButton.addActionListener {
+            val basePath = project.basePath
+            val terminalJsonFile = File(basePath, MyTerminalConstant.defaultFileName)
+            if (!terminalJsonFile.exists()) {
+                return@addActionListener
+            }
+            // json 数据
+            val jsonArray = FileUtils.readFileToString(terminalJsonFile, StandardCharsets.UTF_8)
+
+            val jsonList = JSON.parseArray(jsonArray, MyTerminalData::class.java)
+            val myTerminalDataList = jsonList.stream()
+                .filter {
+                    if (StringUtils.isBlank(it.os)) {
+                        return@filter false
+                    }
+                    if (StringUtils.isBlank(it.name)) {
+                        return@filter false
+                    }
+                    return@filter true
+                }
+                .toList()
+            if (CollectionUtils233.isEmpty(myTerminalDataList)) {
+                return@addActionListener
+            }
+
+
+            val hashMap = HashMap<String, MutableMap<String, MyTerminalData>>()
+            myTerminalDataList.forEach {
+                hashMap.computeIfAbsent(it.os.lowercase()) { _ ->
+                    HashMap()
+                }[it.name] = it
+            }
+
+            // update cache
+            this.osToNameToDataMap = hashMap
+
+            val osName = osLabel.text.lowercase()
+            this.updateScrollPaneContent(selectItemJList, osName)
+        }
 
 
         return panel
     }
+
 
     /**
      * 刷新输入的 cmd 面板
@@ -233,15 +260,61 @@ class MyTerminalWindow : ToolWindowFactory {
         }
     }
 
+    /**
+     * 从 panel 中提取子项 kv
+     */
+    private fun extractKvMapFromChildLabelField(inputPanel: JPanel): Map<String, String> {
+        val kvMap = mutableMapOf<String, String>()
+
+        // label + field = 2
+        for (i in 0 until inputPanel.componentCount step 2) {
+            val label = inputPanel.getComponent(i) as? JLabel
+            val textField = inputPanel.getComponent(i + 1) as? JTextField
+
+            label?.let {
+                val key = it.text
+                val value = textField?.text ?: ""
+                kvMap[key] = value
+            }
+        }
+
+        return kvMap
+    }
+
+
     // Function to create scrollable column
-    private fun createScrollableColumn(options: List<String>): JScrollPane {
+    private fun createScrollPaneForSelectItem(options: List<String>): JScrollPane {
         val columnList = JBList(options)
         columnList.selectionMode = ListSelectionModel.SINGLE_SELECTION
 
-        val columnScrollPane = JBScrollPane(columnList)
-        columnScrollPane.horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+        val selectItemScrollPanel = JBScrollPane(columnList)
+        selectItemScrollPanel.horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
 
-        return columnScrollPane
+        return selectItemScrollPanel
+    }
+
+
+    // 外部更新滚动窗格内容的方法
+    private fun updateScrollPaneContent(
+        columnList: JList<String>,
+        osName: String,
+    ) {
+        val nameList = this.osToNameToDataMap.getOrDefault(osName, MapUtils233.empty()).values
+            .stream()
+            .map { it.name }
+            .toList()
+
+        // 获取列列表的模型
+        val existingModel = columnList.model as DefaultListModel<String>
+
+        // 清空模型
+        existingModel.clear()
+
+        // 将新选项添加到模型
+        nameList.forEach { existingModel.addElement(it) }
+
+        // 重新设置列列表的模型，以刷新滚动窗格
+        columnList.model = existingModel
     }
 
 
