@@ -65,38 +65,8 @@ class MyTerminalWindow : ToolWindowFactory {
         val searchTextField = JTextField()
         searchTextField.columns = 10
 
-        val generateDefaultButton = JButton("Generate Default")
-        generateDefaultButton.addActionListener {
-            val basePath = project.basePath
-            val terminalJsonFile = File(basePath, MyTerminalConstant.defaultFileName)
+        val generateConfigButton = JButton("Generate Config")
 
-            if (!terminalJsonFile.exists()) {
-                try {
-                    terminalJsonFile.createNewFile()
-                    // default content
-                    val defaultData = MyTerminalData().apply {
-                        this.os = "any"
-                        this.name = "demo"
-                        this.cmdTemplate = "echo \$\\{key} = \$\\{value}"
-                    }
-                    val defaultContent = JSON.toJSONString(mutableListOf(defaultData))
-
-                    FileUtils.write(
-                        terminalJsonFile,
-                        defaultContent,
-                        StandardCharsets.UTF_8,
-                    )
-
-                    // Set the path to the config file label
-                    configFileTextField.text = terminalJsonFile.path
-                } catch (e: IOException) {
-                    e.printStackTrace()
-                }
-            } else {
-                // File already exists, set its path to the config file label
-                configFileTextField.text = terminalJsonFile.path
-            }
-        }
 
         val readAgainButton = JButton("Read Config")
 
@@ -107,7 +77,7 @@ class MyTerminalWindow : ToolWindowFactory {
         part1Panel.add(osComboBox)
         part1Panel.add(searchLabel)
         part1Panel.add(searchTextField)
-        part1Panel.add(generateDefaultButton)
+        part1Panel.add(generateConfigButton)
         part1Panel.add(readAgainButton)
 
         // 第 2 部分
@@ -124,7 +94,7 @@ class MyTerminalWindow : ToolWindowFactory {
             .toList()
         val selectItemScrollPanel = createScrollPaneForSelectItem(cmdNameList)
         // 添加选择监听器
-        val selectItemJList = (selectItemScrollPanel.viewport.view as JList<String>)
+        val selectCmdNameJList = (selectItemScrollPanel.viewport.view as JList<String>)
 
 
         part2Panel.add(commandLabel)
@@ -172,24 +142,22 @@ class MyTerminalWindow : ToolWindowFactory {
         panel.add(part4Panel, BorderLayout.SOUTH)
 
 
-        // 监听
-        selectItemJList.selectionModel?.addListSelectionListener {
-            if (!it.valueIsAdjusting) {
+        // 选择命令
+        selectCmdNameJList.selectionModel?.addListSelectionListener {
+            val cmdName = selectCmdNameJList.selectedValue
 
-                val cmdName = selectItemJList.selectedValue
-
-                val os = (osComboBox.selectedItem as String).lowercase()
-                val myTerminalData = osToNameToDataMap.getOrDefault(os, MapUtils233.empty())
-                    .get(cmdName)
-                if (myTerminalData == null) {
-                    return@addListSelectionListener
-                }
-                val cmdTemplate = myTerminalData.cmdTemplate
-
-                cmdTemplateTextArea.text = cmdTemplate
-                this.refreshInputCmdTemplate(cmdTemplateTextArea, inputPanel)
+            val osName = (osComboBox.selectedItem as String).lowercase()
+            val myTerminalData = osToNameToDataMap.getOrDefault(osName, MapUtils233.empty())
+                .get(cmdName)
+            if (myTerminalData == null) {
+                return@addListSelectionListener
             }
+            val cmdTemplate = myTerminalData.cmdTemplate
+
+            cmdTemplateTextArea.text = cmdTemplate
+            this.refreshInputCmdTemplate(cmdTemplateTextArea, inputPanel)
         }
+        // 生成按钮
         generateButton.addActionListener {
             val kvMap = this.extractKvMapFromChildLabelField(inputPanel)
 
@@ -199,7 +167,39 @@ class MyTerminalWindow : ToolWindowFactory {
 
             consoleTextArea.text = build
         }
+        // 生成默认配置按钮
+        generateConfigButton.addActionListener {
+            val basePath = project.basePath
+            val terminalJsonFile = File(basePath, MyTerminalConstant.defaultFileName)
 
+            if (!terminalJsonFile.exists()) {
+                try {
+                    terminalJsonFile.createNewFile()
+                    // default content
+                    val defaultData = MyTerminalData().apply {
+                        this.os = "any"
+                        this.name = "demo"
+                        this.cmdTemplate = "echo \$\\{key} = \$\\{value}"
+                    }
+                    val defaultContent = JSON.toJSONString(mutableListOf(defaultData))
+
+                    FileUtils.write(
+                        terminalJsonFile,
+                        defaultContent,
+                        StandardCharsets.UTF_8,
+                    )
+
+                    // Set the path to the config file label
+                    configFileTextField.text = terminalJsonFile.path
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                }
+            } else {
+                // File already exists, set its path to the config file label
+                configFileTextField.text = terminalJsonFile.path
+            }
+        }
+        // 重新读去配置
         readAgainButton.addActionListener {
             val basePath = project.basePath
             val terminalJsonFile = File(basePath, MyTerminalConstant.defaultFileName)
@@ -237,7 +237,7 @@ class MyTerminalWindow : ToolWindowFactory {
             this.osToNameToDataMap = hashMap
 
             val osName = (osComboBox.selectedItem as String).lowercase()
-            this.updateScrollPaneContent(selectItemJList, osName)
+            this.updateScrollPaneContent(selectCmdNameJList, osName)
         }
 
 
@@ -252,13 +252,21 @@ class MyTerminalWindow : ToolWindowFactory {
         cmdTemplateTextArea: JTextArea,
         inputPanel: JPanel,
     ) {
-        val keySet = extractKeysFromCmdTemplate(cmdTemplateTextArea.text)
+        val cmdTemplate = cmdTemplateTextArea.text
+
+        // clear
+        inputPanel.removeAll()
+
+        // 添加 kv
+        val keySet = extractKeysFromCmdTemplate(cmdTemplate)
         for (key in keySet) {
             val label = JLabel(key)
             val inputField = JTextField()
             inputPanel.add(label)
             inputPanel.add(inputField)
         }
+
+
     }
 
     /**
