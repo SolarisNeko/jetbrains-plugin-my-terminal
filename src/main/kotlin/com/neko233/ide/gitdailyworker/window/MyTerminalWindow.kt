@@ -15,6 +15,7 @@ import com.neko233.skilltree.commons.core.utils.KvTemplate233
 import com.neko233.skilltree.commons.core.utils.MapUtils233
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
+import org.jdesktop.swingx.JXComboBox
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.GridLayout
@@ -59,7 +60,7 @@ class MyTerminalWindow : ToolWindowFactory {
         val configFileTextField = JTextField()
         configFileTextField.columns = 15
         val osLabel = JLabel("Select OS:")
-        val osComboBox = JComboBox(arrayOf("Windows", "Linux", "Mac"))
+        val osComboBox = JXComboBox(arrayOf("Windows", "Linux", "Mac"))
         val searchLabel = JLabel("Search:")
         val searchTextField = JTextField()
         searchTextField.columns = 10
@@ -115,7 +116,7 @@ class MyTerminalWindow : ToolWindowFactory {
         val commandLabel = JLabel("Select Command:")
 
         // 读取配置文件的 cmdName List
-        val osName = osLabel.text.lowercase()
+        val osName = (osComboBox.selectedItem as String).lowercase()
         val data: MutableCollection<MyTerminalData> = osToNameToDataMap.getOrDefault(osName, MapUtils233.empty()).values
         val cmdNameList = ArrayList(data)
             .stream()
@@ -172,12 +173,12 @@ class MyTerminalWindow : ToolWindowFactory {
 
 
         // 监听
-        selectItemJList?.selectionModel?.addListSelectionListener {
+        selectItemJList.selectionModel?.addListSelectionListener {
             if (!it.valueIsAdjusting) {
 
                 val cmdName = selectItemJList.selectedValue
 
-                val os = osLabel.text.lowercase()
+                val os = (osComboBox.selectedItem as String).lowercase()
                 val myTerminalData = osToNameToDataMap.getOrDefault(os, MapUtils233.empty())
                     .get(cmdName)
                 if (myTerminalData == null) {
@@ -235,7 +236,7 @@ class MyTerminalWindow : ToolWindowFactory {
             // update cache
             this.osToNameToDataMap = hashMap
 
-            val osName = osLabel.text.lowercase()
+            val osName = (osComboBox.selectedItem as String).lowercase()
             this.updateScrollPaneContent(selectItemJList, osName)
         }
 
