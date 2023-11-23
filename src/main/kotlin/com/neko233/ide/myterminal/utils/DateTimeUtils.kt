@@ -1,4 +1,4 @@
-package com.neko233.ide.gitdailyworker.utils
+package com.neko233.ide.myterminal.utils
 
 import java.text.SimpleDateFormat
 import java.util.*

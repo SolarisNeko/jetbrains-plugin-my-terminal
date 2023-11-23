@@ -2,14 +2,15 @@
     <!-- 插件id，不可重复，必须唯一。插件的升级后续也是依赖插件id来进行识别的 -->
     <id>com.neko233.jetbrains-plugin.git-daily-report</id>
 
-    <name>MyTerminal</name>
+    <name>MyTerminal233</name>
 
     <vendor email="1417015340@qq.com" url="https://www.neko233.com">luohaojun</vendor>
 
     <!--  插件描述，这里一般是写插件的功能介绍啥的 -->
     <description><![CDATA[
-      MyTerminal
+      MyTerminal233
       一款快速复用你的 Windows/Linux 命令的工具!
+      并且在本地记录你的命令, 使用你的 git 来自动维护你的项目快捷命令!
     ]]>
     </description>
 
@@ -20,15 +21,16 @@
     <depends>com.intellij.modules.xml</depends>
     <depends>com.intellij.modules.vcs</depends>
     <depends>com.intellij.modules.xdebugger</depends>
+    <depends>com.intellij.modules.lang</depends>
 
 
     <extensions defaultExtensionNs="com.intellij">
 
-        <toolWindow id="MyTerminal"
+        <toolWindow id="MyTerminal233"
                     anchor="bottom"
-                    factoryClass="com.neko233.ide.gitdailyworker.window.MyTerminalWindow"
+                    factoryClass="com.neko233.ide.myterminal.window.MyTerminalWindow"
                     secondary="true"
-                    icon="com.neko233.ide.gitdailyworker.icon.MyIcons.MyTerminal"
+                    icon="com.neko233.ide.myterminal.icon.MyIcons.MyTerminal"
         />
 
 

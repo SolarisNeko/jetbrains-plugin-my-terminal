@@ -1,4 +1,4 @@
-package com.neko233.ide.gitdailyworker.component
+package com.neko233.ide.myterminal.component
 
 import java.awt.Color
 import java.awt.Graphics

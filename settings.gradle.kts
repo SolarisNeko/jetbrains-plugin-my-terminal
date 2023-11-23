@@ -8,4 +8,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "my-terminal"
+rootProject.name = "MyTerminal233"

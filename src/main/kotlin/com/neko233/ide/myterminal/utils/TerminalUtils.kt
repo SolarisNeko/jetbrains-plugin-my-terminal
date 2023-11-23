@@ -1,6 +1,8 @@
-package com.neko233.ide.gitdailyworker.utils
+package com.neko233.ide.myterminal.utils
 
+import com.neko233.ide.myterminal.utils.terminal.CommandResult
 import org.apache.commons.io.IOUtils
+import org.apache.commons.lang3.StringUtils
 import java.io.BufferedReader
 import java.io.File
 import java.io.IOException
@@ -17,14 +19,11 @@ import java.util.stream.Collectors
  * */
 object TerminalUtils {
 
-    data class CommandResult(
-        val isOk: Boolean,
-        val successList: List<String>,
-        val errorList: List<String>,
-    ) {
-        fun isError(): Boolean {
-            return !isOk
-        }
+
+    fun splitCommand(command: String): List<String> {
+        val regex = Regex("""[^\s"]+|"([^"]*)"""")
+
+        return regex.findAll(command).map { it.groupValues[0] }.toList()
     }
 
     /**
@@ -36,11 +35,17 @@ object TerminalUtils {
         targetDirPath: String = "",
     ): CommandResult {
         try {
+            val cmdArgs = splitCommand(command)
             val processBuilder = ProcessBuilder(
-                command
+                cmdArgs
             )
-                .directory(File(targetDirPath.trim()))
                 .redirectErrorStream(true)
+            if (StringUtils.isNotBlank(targetDirPath)) {
+                val file = File(targetDirPath.trim())
+                if (file.exists()) {
+                    processBuilder.directory(file)
+                }
+            }
 
             val process = processBuilder.start()
 

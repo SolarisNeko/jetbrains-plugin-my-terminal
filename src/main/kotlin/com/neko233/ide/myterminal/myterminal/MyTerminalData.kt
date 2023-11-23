@@ -1,4 +1,4 @@
-package com.neko233.ide.gitdailyworker.myterminal
+package com.neko233.ide.myterminal.myterminal
 
 /**
  *

@@ -1,4 +1,4 @@
-package com.neko233.ide.gitdailyworker.window
+package com.neko233.ide.myterminal.window
 
 import com.intellij.openapi.ui.DialogWrapper
 import java.awt.BorderLayout
