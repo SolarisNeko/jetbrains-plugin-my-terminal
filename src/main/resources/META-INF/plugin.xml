@@ -1,6 +1,6 @@
 <idea-plugin>
-    <!-- 插件id，不可重复，必须唯一。插件的升级后续也是依赖插件id来进行识别的 -->
-    <id>com.neko233.jetbrains-plugin.git-daily-report</id>
+    <!-- plugin 唯一 id -->
+    <id>com.neko233.jetbrains-plugin.my-terminal</id>
 
     <name>MyTerminal233</name>
 
