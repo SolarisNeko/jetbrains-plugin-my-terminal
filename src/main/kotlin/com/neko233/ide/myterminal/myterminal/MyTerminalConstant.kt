@@ -8,5 +8,6 @@ package com.neko233.ide.myterminal.myterminal
  * */
 object MyTerminalConstant {
     // 默认文件名
+    @JvmStatic
     val defaultFileName = "my-terminal.json"
 }

@@ -16,11 +16,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.neko233:skilltree-commons-core:0.2.4")
-
-    implementation("org.projectlombok:lombok:1.18.2")
-    implementation("org.junit.jupiter:junit-jupiter:5.8.1")
-    annotationProcessor("org.projectlombok:lombok:1.18.2")
+    implementation("com.neko233:skilltree-commons-core:0.2.6")
 
     // 使用 kotlin.test 进行单元测试
     testImplementation("junit:junit:4.13.2")
