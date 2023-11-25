@@ -2,7 +2,7 @@
     <!-- plugin 唯一 id -->
     <id>com.neko233.jetbrains-plugin.my-terminal</id>
 
-    <name>MyTerminal233</name>
+    <name>My-Terminal</name>
 
     <vendor email="1417015340@qq.com" url="https://www.neko233.com">luohaojun</vendor>
 
@@ -26,7 +26,6 @@
     <depends>com.intellij.modules.xml</depends>
     <depends>com.intellij.modules.vcs</depends>
     <depends>com.intellij.modules.xdebugger</depends>
-    <depends>com.intellij.modules.lang</depends>
 
 
     <extensions defaultExtensionNs="com.intellij">

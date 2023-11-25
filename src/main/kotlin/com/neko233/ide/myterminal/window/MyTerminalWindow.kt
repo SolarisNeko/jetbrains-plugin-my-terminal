@@ -1,6 +1,7 @@
 package com.neko233.ide.myterminal.window
 
 import com.alibaba.fastjson2.JSON
+import com.alibaba.fastjson2.JSONWriter
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
@@ -8,9 +9,9 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
+import com.neko233.ide.myterminal.constant.MyTerminalConstant
+import com.neko233.ide.myterminal.data.MyTerminalData
 import com.neko233.ide.myterminal.dialog.CommandResultDialog
-import com.neko233.ide.myterminal.myterminal.MyTerminalConstant
-import com.neko233.ide.myterminal.myterminal.MyTerminalData
 import com.neko233.ide.myterminal.utils.CopyUtils
 import com.neko233.ide.myterminal.utils.TerminalUtils
 import com.neko233.ide.myterminal.utils.terminal.CommandResult
@@ -46,8 +47,22 @@ class MyTerminalWindow : ToolWindowFactory {
     // data
     private var osToNameToDataMap = HashMap<String, MutableMap<String, MyTerminalData>>()
 
+    // 数据文件
+    lateinit var dataFile: File
+    lateinit var selectCmdNameJList: JList<String>
+
+    // 数据文件
+    var inputKvMap: MutableMap<JLabel, JTextField> = mutableMapOf()
+        private set
+
+
     // hold button
     lateinit var generateCmdButton: JButton
+        private set
+    lateinit var saveCmdButton: JButton
+        private set
+    lateinit var cmdTemplateInputTextArea: JTextArea
+        private set
 
     companion object {
         val LOG = Logger.getInstance(MyTerminalWindow::class.java)
@@ -57,6 +72,10 @@ class MyTerminalWindow : ToolWindowFactory {
         project: Project,
         toolWindow: ToolWindow,
     ) {
+        val basePath = project.basePath
+        this.dataFile = File(basePath, MyTerminalConstant.defaultFileName)
+
+
         val contentManager = toolWindow.contentManager
 
         // 创建一个内容面板
@@ -101,7 +120,6 @@ class MyTerminalWindow : ToolWindowFactory {
 
         val readAgainButton = JButton("Read Config")
 
-
         part1Panel.add(configFileLabel)
         part1Panel.add(configFileTextField)
         part1Panel.add(osLabel)
@@ -118,17 +136,19 @@ class MyTerminalWindow : ToolWindowFactory {
 
         // 读取配置文件的 cmdName List
         val osName = (osComboBox.selectedItem as String).lowercase()
-        val data: MutableCollection<MyTerminalData> = osToNameToDataMap.getOrDefault(osName, MapUtils233.empty()).values
-        val cmdNameList = ArrayList(data)
-            .stream()
-            .map { it.name }
-            .toList()
-        val selectItemScrollPanel = createScrollPaneForSelectItem(cmdNameList)
+        this.curOsName = osName
+
+        val pair: Pair<JScrollPane, JPanel> = createScrollPaneForSelectItem()
+        val selectItemScrollPanel = pair.first
+        val selectItemOperateBtnPanel = pair.second
         // 添加选择监听器
-        val selectCmdNameJList = (selectItemScrollPanel.viewport.view as JList<String>)
+        this.selectCmdNameJList = (selectItemScrollPanel.viewport.view as JList<String>)
 
 
         part2Panel.add(commandLabel)
+        // 操作按钮
+        part2Panel.add(selectItemOperateBtnPanel)
+        // 选择
         part2Panel.add(selectItemScrollPanel)
 
         // 第 3 部分
@@ -136,22 +156,27 @@ class MyTerminalWindow : ToolWindowFactory {
         part3Panel.size = Dimension(100, 200)
         part3Panel.layout = BoxLayout(part3Panel, BoxLayout.Y_AXIS)
 
-        val cmdTemplateLabel = JLabel("Command Template")
-        val cmdTemplateTextArea = JTextArea("Demo = \${key} = \${value}")
+        // cmd Template
+        val cmdTemplateTitle = JLabel("Command Template")
+        this.cmdTemplateInputTextArea = JTextArea("Demo = \${key} = \${value}")
 
-        val generateCmdButton = JButton("Generate")
-        this.generateCmdButton = generateCmdButton
+        // button
+        this.saveCmdButton = JButton("Save")
+
+        this.generateCmdButton = JButton("Generate")
+
         val executeButton = JButton("Execute")
 
         val inputPanel = JPanel(GridLayout(0, 2))
-        this.refreshInputCmdTemplate(cmdTemplateTextArea, inputPanel)
+        this.refreshInputCmdTemplate(cmdTemplateInputTextArea, inputPanel)
 
         val buttonPanel = JPanel(FlowLayout(FlowLayout.LEFT))
-        buttonPanel.add(generateCmdButton)
+        buttonPanel.add(this.saveCmdButton)
+        buttonPanel.add(this.generateCmdButton)
         buttonPanel.add(executeButton)
 
-        part3Panel.add(cmdTemplateLabel, BorderLayout.CENTER)
-        part3Panel.add(cmdTemplateTextArea, BorderLayout.CENTER)
+        part3Panel.add(cmdTemplateTitle, BorderLayout.CENTER)
+        part3Panel.add(cmdTemplateInputTextArea, BorderLayout.CENTER)
         part3Panel.add(inputPanel, BorderLayout.SOUTH)
         part3Panel.add(buttonPanel, BorderLayout.EAST)
 
@@ -160,7 +185,7 @@ class MyTerminalWindow : ToolWindowFactory {
         part4Panel.layout = BoxLayout(part4Panel, BoxLayout.Y_AXIS)
 
         val consoleTextArea = JTextArea()
-        val scrollPane = JScrollPane(consoleTextArea)
+        val scrollPane = JBScrollPane(consoleTextArea)
 
         val copyButton = JButton("Copy")
         val clearButton = JButton("Clear Console")
@@ -183,29 +208,28 @@ class MyTerminalWindow : ToolWindowFactory {
         }
 
         // 选择命令
-        selectCmdNameJList.selectionModel?.addListSelectionListener {
+        this.selectCmdNameJList.selectionModel?.addListSelectionListener {
+            // 记录选中
             val cmdName = selectCmdNameJList.selectedValue
-
-            val osName = (osComboBox.selectedItem as String).lowercase()
-
+            if (cmdName == null) {
+                return@addListSelectionListener
+            }
             this.curCmdName = cmdName
-            this.curOsName = osName
 
-            val myTerminalData = osToNameToDataMap.getOrDefault(osName, MapUtils233.empty())
-                .get(cmdName)
+            val myTerminalData = getCurrentChooseCmdData()
             if (myTerminalData == null) {
                 return@addListSelectionListener
             }
             val cmdTemplate = myTerminalData.cmdTemplate
 
-            cmdTemplateTextArea.text = cmdTemplate
-            this.refreshInputCmdTemplate(cmdTemplateTextArea, inputPanel)
+            cmdTemplateInputTextArea.text = cmdTemplate
+            this.refreshInputCmdTemplate(cmdTemplateInputTextArea, inputPanel)
         }
         // 生成按钮
         generateCmdButton.addActionListener {
             val kvMap = this.extractKvMapFromChildLabelField(inputPanel)
 
-            val build = KvTemplate233(cmdTemplateTextArea.text)
+            val build = KvTemplate233(cmdTemplateInputTextArea.text)
                 .put(kvMap)
                 .build()
 
@@ -223,17 +247,15 @@ class MyTerminalWindow : ToolWindowFactory {
         }
         // 生成默认配置按钮
         generateConfigButton.addActionListener {
-            val basePath = project.basePath
-            val terminalJsonFile = File(basePath, MyTerminalConstant.defaultFileName)
-
+            val terminalJsonFile = this.dataFile
             if (!terminalJsonFile.exists()) {
                 try {
                     terminalJsonFile.createNewFile()
                     // default content
                     val defaultData = MyTerminalData().apply {
-                        this.os = "any"
+                        this.os = "windows"
                         this.name = "demo"
-                        this.cmdTemplate = "echo \$\\{key} = \$\\{value}"
+                        this.cmdTemplate = "echo $\\{key} = $\\{value}"
                     }
                     val defaultContent = JSON.toJSONString(mutableListOf(defaultData))
 
@@ -293,11 +315,71 @@ class MyTerminalWindow : ToolWindowFactory {
             this.osToNameToDataMap = hashMap
 
             val osName = (osComboBox.selectedItem as String).lowercase()
-            this.updateScrollPaneContent(selectCmdNameJList, osName)
+            this.curOsName = osName
+
+            // 更新所有 cmd aliasName 选项
+            this.updateScrollPaneContent(this.selectCmdNameJList)
+        }
+
+        // 保存 click
+        this.saveCmdButton.addActionListener {
+            val curOsName = this.curOsName
+            val curCmdName = this.curCmdName
+
+            val content = this.cmdTemplateInputTextArea.text
+
+            val defaultKvMap = mutableMapOf<String, String>()
+            this.inputKvMap.forEach {
+                val key = it.key.text.trim()
+                val value = it.value.text.trim()
+                defaultKvMap[key] = value
+            }
+
+            // save
+            val newData = MyTerminalData().apply {
+                this.os = curOsName
+                this.name = curCmdName
+                this.cmdTemplate = content
+                this.defaultKvMap = defaultKvMap
+            }
+
+            osToNameToDataMap.computeIfAbsent(curOsName) { _ -> HashMap() }
+                .put(curCmdName, newData)
+
+
+            // to data list
+            val dataList = osToNameToDataMap.values
+                .stream()
+                .map { it.values }
+                .flatMap { it.stream() }
+                .toList()
+            val jsonPretty = JSON.toJSONString(dataList, JSONWriter.Feature.PrettyFormat)
+
+            // 写入到文件
+            FileUtils.write(this.dataFile, jsonPretty, StandardCharsets.UTF_8)
+
         }
 
 
         return rootPanel
+    }
+
+    private fun getCurrentChooseCmdData(
+    ): MyTerminalData? {
+        val osName = this.curOsName
+        val cmdName = this.curCmdName
+
+        val myTerminalData = osToNameToDataMap.getOrDefault(osName, MapUtils233.empty())
+            .get(cmdName)
+        return myTerminalData
+    }
+
+    private fun getCurrentDataList(
+    ): ArrayList<MyTerminalData> {
+        val osName = this.curOsName
+
+        return ArrayList(osToNameToDataMap.getOrDefault(osName, MapUtils233.empty()).values)
+
     }
 
 
@@ -318,10 +400,14 @@ class MyTerminalWindow : ToolWindowFactory {
 
         // 添加 kv
         val keySet = extractKeysFromCmdTemplate(cmdTemplate)
+        val kvInputMap = HashMap<JLabel, JTextField>()
         for (key in keySet) {
             // key = value
             val labelKey = JLabel(key)
             val inputFieldValue = JTextField()
+            kvInputMap.put(labelKey, inputFieldValue)
+
+            // change listener
             inputFieldValue.document.addDocumentListener(object : DocumentListener {
                 override fun insertUpdate(e: DocumentEvent?) {
                     // Schedule the button click after a delay
@@ -348,7 +434,7 @@ class MyTerminalWindow : ToolWindowFactory {
 
             // click
         }
-
+        this.inputKvMap = kvInputMap
 
     }
 
@@ -374,39 +460,129 @@ class MyTerminalWindow : ToolWindowFactory {
     }
 
 
-    // Function to create scrollable column
-    private fun createScrollPaneForSelectItem(options: List<String>): JScrollPane {
-        val columnList = JBList(options)
+    // Function to create scrollable column with Add/Remove buttons
+    private fun createScrollPaneForSelectItem(): Pair<JScrollPane, JPanel> {
+        val data: MutableCollection<MyTerminalData> = osToNameToDataMap.getOrDefault(
+            this.curOsName, MapUtils233.empty()
+        ).values
+        val cmdNameList = ArrayList(data)
+            .stream()
+            .map { it.name }
+            .toList()
+
+        val columnList = JBList(cmdNameList)
         columnList.selectionMode = ListSelectionModel.SINGLE_SELECTION
 
         val selectItemScrollPanel = JBScrollPane(columnList)
         selectItemScrollPanel.horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
 
-        return selectItemScrollPanel
+        val buttonPanel = JPanel()
+        val addButton = JButton("Add")
+        val removeButton = JButton("Remove")
+        val modifyNameButton = JButton("Modify Name")
+
+        val osName = this.curOsName
+
+        // add
+        addButton.addActionListener {
+            val newName = JOptionPane.showInputDialog("Enter a new name:")
+            if (newName != null && newName.isNotBlank()) {
+                addData(newName)
+                updateScrollPaneContent(columnList)
+            }
+        }
+
+        // remove
+        removeButton.addActionListener {
+            removeData(this.curCmdName)
+            updateScrollPaneContent(columnList)
+        }
+
+        // modify
+        modifyNameButton.addActionListener {
+            val selectedIndex = columnList.selectedIndex
+            if (selectedIndex != -1) {
+                val currentName = cmdNameList[selectedIndex]
+                val modifiedName = JOptionPane.showInputDialog("Modify name:", currentName)
+
+                updateData(currentName, modifiedName)
+                updateScrollPaneContent(columnList)
+
+            }
+        }
+
+        buttonPanel.add(addButton)
+        buttonPanel.add(removeButton)
+        buttonPanel.add(modifyNameButton)
+
+        return Pair(selectItemScrollPanel, buttonPanel)
+    }
+
+    private fun updateData(
+        currentName: String,
+        modifiedName: String
+    ) {
+        // default content
+        val osName = this.curOsName
+
+        val data = this.osToNameToDataMap.computeIfAbsent(osName) { _ -> HashMap() }
+            .remove(currentName)
+            ?: return
+        data.name = modifiedName
+
+        addData(data.name, data)
+    }
+
+    private fun removeData(curCmdName: String) {
+        // default content
+        val osName = this.curOsName
+
+        this.osToNameToDataMap.computeIfAbsent(osName) { _ -> HashMap() }
+            .remove(curCmdName)
+    }
+
+    private fun addData(newName: String) {
+        // default content
+        val osName = this.curOsName
+        val newData = MyTerminalData().apply {
+            this.os = osName
+            this.name = newName
+            this.cmdTemplate = ""
+        }
+
+        this.osToNameToDataMap.computeIfAbsent(osName) { _ -> HashMap() }
+            .put(newName, newData)
+    }
+
+    private fun addData(
+        newName: String,
+        data: MyTerminalData
+    ) {
+        // default content
+        val osName = this.curOsName
+
+        this.osToNameToDataMap.computeIfAbsent(osName) { _ -> HashMap() }
+            .put(newName, data)
     }
 
 
-    // 外部更新滚动窗格内容的方法
+    /**
+     * 更新当前选项
+     */
     private fun updateScrollPaneContent(
         columnList: JList<String>,
-        osName: String,
     ) {
-        val nameList = this.osToNameToDataMap.getOrDefault(osName, MapUtils233.empty()).values
-            .stream()
+        val nameList: MutableList<String> = mutableListOf()
+        // 全部
+        val dataList = getCurrentDataList()
+        val cmdNameList = dataList.stream()
             .map { it.name }
             .toList()
+        nameList.addAll(cmdNameList)
 
-        // 获取列列表的模型
         val existingModel = columnList.model as DefaultListModel<String>
-
-        // 清空模型
         existingModel.clear()
-
-        // 将新选项添加到模型
         nameList.forEach { existingModel.addElement(it) }
-
-        // 重新设置列列表的模型，以刷新滚动窗格
-        columnList.model = existingModel
     }
 
 

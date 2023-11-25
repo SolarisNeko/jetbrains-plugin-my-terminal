@@ -1,4 +1,4 @@
-package com.neko233.ide.myterminal.myterminal
+package com.neko233.ide.myterminal.data
 
 /**
  *
@@ -11,7 +11,7 @@ class MyTerminalData {
     /**
      * 匹配的系统
      */
-    var os: String = "any"
+    var os: String = "windows"
 
     /**
      * 命令的代表名字
