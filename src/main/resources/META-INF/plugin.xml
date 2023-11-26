@@ -12,7 +12,7 @@
       A tool to quickly reuse your Windows/Linux commands!
       And Store in a json file named 'my-terminal.json'
 
-    And record your commands locally and use your git to automatically maintain your project shortcut commands!
+        And record your commands locally and use your git to automatically maintain your project shortcut commands!
 
       一款快速复用你的 Windows/Linux 命令的工具!
       并且在本地记录你的命令, 使用你的 git 来自动维护你的项目快捷命令!

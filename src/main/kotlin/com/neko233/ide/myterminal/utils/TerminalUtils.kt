@@ -1,6 +1,9 @@
 package com.neko233.ide.myterminal.utils
 
 import com.neko233.ide.myterminal.utils.terminal.CommandResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import org.apache.commons.io.IOUtils
 import org.apache.commons.lang3.StringUtils
 import java.io.BufferedReader
@@ -68,6 +71,56 @@ object TerminalUtils {
         }
     }
 
+
+    /**
+     * @param command 单个命令
+     * @return 封装的命令执行结果
+     */
+    suspend fun executeCmdAsyncReturnResult(
+        command: String,
+        targetDirPath: String = ""
+    ): CommandResult = runBlocking {
+        try {
+            val cmdArgs = splitCommand(command)
+            val processBuilder = ProcessBuilder(cmdArgs)
+                .redirectErrorStream(true)
+
+            if (targetDirPath.isNotBlank()) {
+                val file = File(targetDirPath.trim())
+                if (file.exists()) {
+                    processBuilder.directory(file)
+                }
+            }
+
+            val process = processBuilder.start()
+
+            val inputStream = process.inputStream
+            val errorStream = process.errorStream
+
+            // Use async to read output and error streams concurrently
+            val successDeferred = async(Dispatchers.IO) {
+                BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).readLines()
+            }
+
+            val errorDeferred = async(Dispatchers.IO) {
+                BufferedReader(InputStreamReader(errorStream, Charsets.UTF_8)).readLines()
+            }
+
+            val successList = successDeferred.await()
+            val errorList = errorDeferred.await()
+
+            val exitCode = process.waitFor()
+            val isOk = exitCode == 0
+
+            CommandResult(isOk, successList, errorList)
+        } catch (e: IOException) {
+            e.printStackTrace()
+            CommandResult(false, emptyList(), listOf("IOException: ${e.message}"))
+        } catch (e: InterruptedException) {
+            e.printStackTrace()
+            CommandResult(false, emptyList(), listOf("InterruptedException: ${e.message}"))
+        }
+    }
 
     /**
      * @param command 单个命令

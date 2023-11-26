@@ -1,8 +1,10 @@
 // 项目依赖的插件，默认会依赖kotlin，但我们这里是直接用java来开发插件的，所以这里依赖我们可以去掉
+val kotlinVersion = "1.9.0"
 
 plugins {
+    val kotlinVersion = "1.9.0"
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.0"
+    id("org.jetbrains.kotlin.jvm") version kotlinVersion
     id("org.jetbrains.intellij") version "1.15.0"
 }
 
@@ -17,6 +19,7 @@ repositories {
 
 dependencies {
     implementation("com.neko233:skilltree-commons-core:0.2.6")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")
 
     // 使用 kotlin.test 进行单元测试
     testImplementation("junit:junit:4.13.2")
