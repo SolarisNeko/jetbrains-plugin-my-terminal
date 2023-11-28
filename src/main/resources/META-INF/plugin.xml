@@ -2,7 +2,7 @@
     <!-- plugin 唯一 id -->
     <id>com.neko233.jetbrains-plugin.my-terminal</id>
 
-    <name>My-Terminal</name>
+    <name>MyTerminal</name>
 
     <vendor email="1417015340@qq.com" url="https://www.neko233.com">luohaojun</vendor>
 
